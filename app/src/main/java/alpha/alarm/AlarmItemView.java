@@ -46,7 +46,7 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
         mTime = (TextView)findViewById(R.id.time);
         mDate = (TextView)findViewById(R.id.date);
         mSwitcher = (Switch)findViewById(R.id.switcher);
-        mTime.setText(mCalendar.get(Calendar.HOUR_OF_DAY) + ":" + mCalendar.get(Calendar.MINUTE));
+        mTime.setText(String.format(Locale.CHINA, "%02d:%02d", mCalendar.get(Calendar.HOUR_OF_DAY) , mCalendar.get(Calendar.MINUTE)));
 
         mTime.setOnClickListener(new OnClickListener() {
             @Override
@@ -133,10 +133,10 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
             long minute = deltaMinutes % 60;
             String toast = "闹钟将在";
             if (hour != 0) {
-                toast += String.format(Locale.CHINA, "%2d小时", hour);
+                toast += String.format(Locale.CHINA, "%d小时", hour);
             }
             if (minute != 0) {
-                toast += String.format(Locale.CHINA, "%2d分钟", minute);
+                toast += String.format(Locale.CHINA, "%d分钟", minute);
             }
             toast += "后响铃";
             Toast.makeText(getContext(), toast, Toast.LENGTH_SHORT).show();
