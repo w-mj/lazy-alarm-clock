@@ -21,6 +21,7 @@ import android.widget.TimePicker;
 import android.widget.Toast;
 
 import java.util.Calendar;
+import java.util.Locale;
 
 /**
  * Created by mj on 17-9-10.
@@ -50,6 +51,7 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
         mTime.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
+                setAlarm(false);  // 修改前先取消之前设定的事件
                 TimePickerDialog timePickerDialog = new TimePickerDialog(
                         getContext(), new TimePickerDialog.OnTimeSetListener() {
                     @Override
@@ -123,24 +125,28 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
 
     private void setAlarm(boolean isChecked) {
         AlarmManager alarmManager = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE); // 获得系统闹钟服务
-        Intent intent = new Intent(getContext(), MainActivity.class);
+        Intent intent = new Intent(getContext(), Alarm.class);
         PendingIntent pi = PendingIntent.getActivity(getContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
         if (isChecked) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, mCalendar.getTimeInMillis(), pi);
             long deltaMinutes = (long)((mCalendar.getTimeInMillis() - System.currentTimeMillis()) / 60000.0 + 0.5);
-            String toast = "闹钟将在";
             long hour = deltaMinutes / 60;
             long minute = deltaMinutes % 60;
+            String toast = "闹钟将在";
             if (hour != 0) {
-                toast += hour + "小时";
+                toast += String.format(Locale.CHINA, "%2d小时", hour);
             }
             if (minute != 0) {
-                toast += minute + "分钟";
+                toast += String.format(Locale.CHINA, "%2d分钟", minute);
             }
             toast += "后响铃";
             Toast.makeText(getContext(), toast, Toast.LENGTH_SHORT).show();
+
+            mCalendar.set(Calendar.SECOND, 0);
+            alarmManager.set(AlarmManager.RTC_WAKEUP, mCalendar.getTimeInMillis(), pi);
+            Log.i("Alarm", "注册定时事件");
         } else {
             alarmManager.cancel(pi);
+            Log.i("Alarm", "取消定时事件");
         }
     }
 }
