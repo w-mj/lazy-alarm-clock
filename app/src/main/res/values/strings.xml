@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Alarm</string>
+    <string name="add_alarm_text">添加闹钟</string>
+    <string name="title_activity_alarm">Alarm</string>
+</resources>
