@@ -12,6 +12,8 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import java.util.Calendar;
+
 
 public class MainActivity extends AppCompatActivity {
     public static boolean DEBUG = true;
@@ -21,13 +23,23 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Button add_alarm_button = (Button) findViewById(R.id.add_alarm_button);
+
         final LinearLayout alarm_list = (LinearLayout) findViewById(R.id.alarm_list);
         final MainActivity mainActivity = this;
+
+        AlarmList.getInstance().readDataFromDataBase(this, alarm_list);
+
         add_alarm_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Log.i("MainActivity", "添加闹钟");
-                alarm_list.addView(new AlarmItemView(mainActivity));
+                AlarmItemView view = new AlarmItemView(mainActivity);
+                alarm_list.addView(view);
+                AlarmList.getInstance().insertToDatabase(mainActivity,
+                        view.getCalendar().get(Calendar.HOUR_OF_DAY),
+                        view.getCalendar().get(Calendar.MINUTE),
+                        view.mEvery,
+                        view.isAlive()?1:0);
             }
         });
 

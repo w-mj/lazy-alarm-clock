@@ -33,16 +33,36 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
     private TextView mTime;
     private TextView mDate;
     private Switch mSwitcher;
+    public int mEvery = 0;
 
     public AlarmItemView(Context context) {
         super(context);
+        mCalendar = Calendar.getInstance();
+        mCalendar.set(Calendar.HOUR_OF_DAY, mCalendar.get(Calendar.HOUR_OF_DAY) + 1); // 默认一小时后
         init();
+        if (mSwitcher.isChecked())
+            setAlarm(true, true);
+    }
+
+    public AlarmItemView(Context context, int hour, int minute, int every, boolean isAlive) {
+        super(context);
+        mCalendar = Calendar.getInstance();
+        mCalendar.set(Calendar.HOUR_OF_DAY, hour);
+        mCalendar.set(Calendar.MINUTE, minute);
+        if (mCalendar.getTimeInMillis() < System.currentTimeMillis()) {
+            // 如果闹钟时间比当前时间早, 设为第二天
+            mCalendar.setTimeInMillis(mCalendar.getTimeInMillis() + 24 * 60 * 60 * 1000);
+        }
+        init();
+        mSwitcher.setChecked(isAlive);
+        if (mSwitcher.isChecked())
+            setAlarm(true, false);
+        mEvery = every;
     }
 
     private void init() {
         inflate(getContext(), R.layout.alarm_view, this);
-        mCalendar = Calendar.getInstance();
-        mCalendar.set(Calendar.HOUR_OF_DAY, mCalendar.get(Calendar.HOUR_OF_DAY) + 1); // 默认一小时后
+
         mTime = (TextView)findViewById(R.id.time);
         mDate = (TextView)findViewById(R.id.date);
         mSwitcher = (Switch)findViewById(R.id.switcher);
@@ -51,17 +71,22 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
         mTime.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                setAlarm(false);  // 修改前先取消之前设定的事件
+                setAlarm(false, false);  // 修改前先取消之前设定的事件
                 TimePickerDialog timePickerDialog = new TimePickerDialog(
                         getContext(), new TimePickerDialog.OnTimeSetListener() {
                     @Override
                     public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
                         Log.i("setTimeDialog", "修改时间");
+                        int oldHour = mCalendar.get(Calendar.HOUR_OF_DAY);
+                        int oldMinute = mCalendar.get(Calendar.MINUTE);
+                        int oldEvery = mEvery;
                         mCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
                         mCalendar.set(Calendar.MINUTE, minute);
                         mTime.setText(String.valueOf(hourOfDay) + ":" + minute);
                         if (mSwitcher.isChecked())
-                            setAlarm(true);
+                            setAlarm(true, true);
+                        AlarmList.getInstance().changeAndSaveToDataBase(getContext(), oldHour, oldMinute, oldEvery,
+                                mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), mEvery, mSwitcher.isChecked()?1:0);
                     }
                 }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true
                 );
@@ -86,14 +111,14 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
         });
         mDate.setVisibility(GONE);
 
-        AlarmList.list.add(this);
+        AlarmList.getInstance().list.add(this);
 
         setOnLongClickListener(this);
 
         mSwitcher.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                setAlarm(isChecked);
+                setAlarm(isChecked, true);
             }
         });
     }
@@ -114,32 +139,35 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
         dialog.setPositiveButton("确定", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                AlarmList.list.remove(t);
+                AlarmList.getInstance().list.remove(t);
                 t.setVisibility(GONE);
                 t.mSwitcher.setChecked(false);
+                AlarmList.getInstance().delete(getContext(), mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), mEvery);
             }
         });
         dialog.show();
         return false;
     }
 
-    private void setAlarm(boolean isChecked) {
+    private void setAlarm(boolean isChecked, boolean showToast) {
         AlarmManager alarmManager = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE); // 获得系统闹钟服务
         Intent intent = new Intent(getContext(), Alarm.class);
         PendingIntent pi = PendingIntent.getActivity(getContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
         if (isChecked) {
-            long deltaMinutes = (long)((mCalendar.getTimeInMillis() - System.currentTimeMillis()) / 60000.0 + 0.5);
-            long hour = deltaMinutes / 60;
-            long minute = deltaMinutes % 60;
-            String toast = "闹钟将在";
-            if (hour != 0) {
-                toast += String.format(Locale.CHINA, "%d小时", hour);
+            if (showToast) {
+                long deltaMinutes = (long) ((mCalendar.getTimeInMillis() - System.currentTimeMillis()) / 60000.0 + 0.5);
+                long hour = deltaMinutes / 60;
+                long minute = deltaMinutes % 60;
+                String toast = "闹钟将在";
+                if (hour != 0) {
+                    toast += String.format(Locale.CHINA, "%d小时", hour);
+                }
+                if (minute != 0) {
+                    toast += String.format(Locale.CHINA, "%d分钟", minute);
+                }
+                toast += "后响铃";
+                Toast.makeText(getContext(), toast, Toast.LENGTH_SHORT).show();
             }
-            if (minute != 0) {
-                toast += String.format(Locale.CHINA, "%d分钟", minute);
-            }
-            toast += "后响铃";
-            Toast.makeText(getContext(), toast, Toast.LENGTH_SHORT).show();
 
             mCalendar.set(Calendar.SECOND, 0);
             alarmManager.set(AlarmManager.RTC_WAKEUP, mCalendar.getTimeInMillis(), pi);

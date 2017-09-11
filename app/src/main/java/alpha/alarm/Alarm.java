@@ -48,7 +48,7 @@ public class Alarm extends AppCompatActivity implements SensorEventListener{
             ringing = true;
 
         long now = System.currentTimeMillis();
-        for (AlarmItemView v : AlarmList.list) {
+        for (AlarmItemView v : AlarmList.getInstance().list) {
             if (Math.abs(v.getCalendar().getTimeInMillis() - now) < 5000) {
 //                wakePhoneAndUnlock();
                 ringing = true;
