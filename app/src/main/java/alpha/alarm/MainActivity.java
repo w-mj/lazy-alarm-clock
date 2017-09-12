@@ -16,7 +16,7 @@ import java.util.Calendar;
 
 
 public class MainActivity extends AppCompatActivity {
-    public static boolean DEBUG = true;
+    public static boolean DEBUG = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

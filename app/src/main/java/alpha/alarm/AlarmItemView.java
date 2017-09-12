@@ -2,13 +2,11 @@ package alpha.alarm;
 
 import android.app.AlarmManager;
 import android.app.DatePickerDialog;
-import android.app.Dialog;
 import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.provider.SyncStateContract;
 import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.View;
@@ -49,10 +47,6 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
         mCalendar = Calendar.getInstance();
         mCalendar.set(Calendar.HOUR_OF_DAY, hour);
         mCalendar.set(Calendar.MINUTE, minute);
-        if (mCalendar.getTimeInMillis() < System.currentTimeMillis()) {
-            // 如果闹钟时间比当前时间早, 设为第二天
-            mCalendar.setTimeInMillis(mCalendar.getTimeInMillis() + 24 * 60 * 60 * 1000);
-        }
         init();
         mSwitcher.setChecked(isAlive);
         if (mSwitcher.isChecked())
@@ -153,11 +147,19 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
         AlarmManager alarmManager = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE); // 获得系统闹钟服务
         Intent intent = new Intent(getContext(), Alarm.class);
         PendingIntent pi = PendingIntent.getActivity(getContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+
+        long millisecond = mCalendar.getTimeInMillis();
+        mCalendar.set(Calendar.SECOND, 0);
+        if (millisecond < System.currentTimeMillis()) {
+            millisecond += 24 * 60 * 60 * 1000;
+        }
         if (isChecked) {
             if (showToast) {
-                long deltaMinutes = (long) ((mCalendar.getTimeInMillis() - System.currentTimeMillis()) / 60000.0 + 0.5);
+                long deltaMinutes = (long) ((millisecond - System.currentTimeMillis()) / 60000.0 + 0.5);
                 long hour = deltaMinutes / 60;
                 long minute = deltaMinutes % 60;
+                if (hour == 0 && minute == 0)
+                    minute = 1;
                 String toast = "闹钟将在";
                 if (hour != 0) {
                     toast += String.format(Locale.CHINA, "%d小时", hour);
@@ -169,8 +171,7 @@ public class AlarmItemView extends RelativeLayout implements View.OnLongClickLis
                 Toast.makeText(getContext(), toast, Toast.LENGTH_SHORT).show();
             }
 
-            mCalendar.set(Calendar.SECOND, 0);
-            alarmManager.set(AlarmManager.RTC_WAKEUP, mCalendar.getTimeInMillis(), pi);
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, mCalendar.getTimeInMillis(), pi);
             Log.i("Alarm", "注册定时事件");
         } else {
             alarmManager.cancel(pi);

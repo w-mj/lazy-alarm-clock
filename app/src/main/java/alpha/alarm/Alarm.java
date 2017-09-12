@@ -6,6 +6,9 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.MediaPlayer;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.provider.Settings;
@@ -17,13 +20,17 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
 
+import java.io.IOException;
+import java.net.URI;
+
 public class Alarm extends AppCompatActivity implements SensorEventListener{
     private boolean ringing = false;
     SensorManager sensorManager;
+    private MediaPlayer mediaPlayer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.i("Alarm", "进入Alarm");
+        Log.i("Alarm", "进入onCreate");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_alarm);
 
@@ -38,19 +45,36 @@ public class Alarm extends AppCompatActivity implements SensorEventListener{
             }
         });
 
+
+    }
+
+    @Override
+    protected void onResume() {
+        Log.i("Alarm", "进入onResume");
+        super.onResume();
+
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE); // 获得传感器服务
         Sensor accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
 
-
+        Uri ringtoneUri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM);
+        mediaPlayer = new MediaPlayer();
+        try {
+            mediaPlayer.setDataSource(this, ringtoneUri);
+            mediaPlayer.prepare();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         if (MainActivity.DEBUG)
             ringing = true;
 
         long now = System.currentTimeMillis();
         for (AlarmItemView v : AlarmList.getInstance().list) {
+            Log.i("比较时间", "list: " + v.getCalendar().getTimeInMillis() + "  now: " + System.currentTimeMillis());
             if (Math.abs(v.getCalendar().getTimeInMillis() - now) < 5000) {
 //                wakePhoneAndUnlock();
+                Log.i("Alarm", "开始闹钟");
                 ringing = true;
                 startAlarm();  // 响铃
             }
@@ -59,6 +83,13 @@ public class Alarm extends AppCompatActivity implements SensorEventListener{
         // 如果被系统唤醒但是没有触发任意一个闹钟, 退出
         if (!ringing && !MainActivity.DEBUG)
             finish();
+    }
+
+    @Override
+    protected void onPause() {
+        sensorManager.unregisterListener(this);
+        mediaPlayer.release();
+        super.onPause();
     }
 
 //    //点亮屏幕并解锁
@@ -73,8 +104,12 @@ public class Alarm extends AppCompatActivity implements SensorEventListener{
 //        //释放
 //    }
 
-    private void startAlarm() {}
-    private void stopAlarm() {}
+    private void startAlarm() {
+        mediaPlayer.start();
+    }
+    private void stopAlarm() {
+        mediaPlayer.stop();
+    }
 
     private long startShakeTime = 0, lastDetectedTime = 0;
 
@@ -91,7 +126,7 @@ public class Alarm extends AppCompatActivity implements SensorEventListener{
             float y = values[1];
             float z = values[2];
             int value = 10;
-            Log.i("out detected", "x=" + x + "y=" + y + "z=" + z);
+            // Log.i("out detected", "x=" + x + "y=" + y + "z=" + z);
             if (x >= value || x <= -value || y >= value || y <= -value || z >= value || z <= -value) {
                 Log.i("in detected", "x=" + x + "y=" + y + "z=" + z + "total time=" + String.valueOf(System.currentTimeMillis() - startShakeTime));
                 if (lastDetectedTime == 0 || System.currentTimeMillis() - lastDetectedTime > 2000) {
@@ -104,6 +139,7 @@ public class Alarm extends AppCompatActivity implements SensorEventListener{
                     Log.i("Alarm", "停止闹钟");
                     stopAlarm();
                     Toast.makeText(this, "停止闹钟", Toast.LENGTH_LONG).show();
+                    finish();
                 }
                 lastDetectedTime = System.currentTimeMillis();
 
@@ -115,9 +151,5 @@ public class Alarm extends AppCompatActivity implements SensorEventListener{
 
     }
 
-    @Override
-    protected void onPause() {
-        sensorManager.unregisterListener(this);
-        super.onPause();
-    }
+
 }
